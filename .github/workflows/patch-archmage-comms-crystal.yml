@@ -1,0 +1,48 @@
+name: Patch Archmage comms crystal
+
+on:
+  push:
+    branches:
+      - tmp/patch-archmage-comms-crystal
+  pull_request:
+    branches:
+      - develop
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply targeted patch
+        shell: python
+        run: |
+          import subprocess
+          from pathlib import Path
+
+          subprocess.run(["git", "checkout", "-B", "fix/archmage-comms-crystal", "04185552df4aee26311607eee7464fa3048f977c"], check=True)
+
+          path = Path("Resources/Prototypes/Imperial/Medieval/jobs.yml")
+          data = path.read_bytes()
+          old = b"    - MedievalSpellBookRecodeCollegiumStrong\r\n"
+          new = old + b"    - MedievalCommsCrystallColl\r\n"
+
+          if new in data:
+              raise SystemExit("Target already contains the communication crystal")
+          if data.count(old) != 1:
+              raise SystemExit(f"Expected exactly one target line, found {data.count(old)}")
+
+          path.write_bytes(data.replace(old, new, 1))
+
+      - name: Commit and push clean branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Resources/Prototypes/Imperial/Medieval/jobs.yml
+          git commit -m "Give Collegium Archmage a comms crystal"
+          git push --force origin HEAD:fix/archmage-comms-crystal
